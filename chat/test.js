@@ -97,22 +97,42 @@ export const options = {
   },
 };
 
+// 메시지 생성 최적화
+const preGeneratedMessage = JSON.stringify({
+  sender: 'user_pre',
+  content: generateRandomString(1024), // 1KB
+  messageId: 'pre-generated',
+  sentTime: Date.now(),
+});
+
+function generateRandomString(length) {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  const charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  return result;
+}
+
 export default function () {
-  const url = 'ws://localhost/chat';  // WebSocket 서버 URL
+  const url = __ENV.WS_URL; // 'ws://host.docker.internal/chat';  // WebSocket 서버 URL
 
 
   const res = ws.connect(url, {}, function (socket) {
     const maxMessages = 10;
+    const messageSize = 1024; // 1KB
     const from = 2;
     const range = 4;
-  
+    // const randomString = generateRandomString(messageSize);
+
     socket.on('open', function () {
       console.log('WebSocket 연결 성공');      
       let messageCount = 0;
       const intervalId = socket.setInterval(function () {
         if (messageCount < maxMessages) {
             const sender = 'user_' + __VU;
-            const largeMessage = 'a'.repeat(1024);
+            const largeMessage = generateRandomString(messageSize);
             const content = `Message ${messageCount} from user_${__VU} #${messageCount}`;
             const messageId = `${__VU}-${__ITER}-${Date.now()}`;
             const sentTime = Date.now();
@@ -126,12 +146,15 @@ export default function () {
             
             socket.send(message);
             // console.log(content);
+
+            // socket.send(preGeneratedMessage);
             messageCount++;
         } else {
           clearInterval(intervalId); // 메시지 전송 완료 시 연결 종료
           sleep(range * maxMessages);
           socket.close();
         }
+      // }, 1000);
       }, Math.random() * range * 1000 + from * 1000);
     });
 
